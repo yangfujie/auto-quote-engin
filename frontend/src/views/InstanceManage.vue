@@ -37,6 +37,7 @@
 </template>
 <script>
 import { ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { strategyApi } from '../api'
 import { useRoute } from 'vue-router'
 
@@ -62,8 +63,28 @@ export default {
       instances.value = res.data
     }
     const submit = async () => {
-      await strategyApi.createInstance(form.value)
-      await loadInstances()
+      try {
+        const parseJsonField = (val) => {
+          if (!val || !val.trim()) return null
+          try {
+            return JSON.stringify(JSON.parse(val))
+          } catch (e) {
+            throw new Error('JSON格式错误: ' + val)
+          }
+        }
+        const payload = {
+          ...form.value,
+          triggerConditions: parseJsonField(form.value.triggerConditions),
+          params: parseJsonField(form.value.params),
+          status: 0
+        }
+        await strategyApi.createInstance(payload)
+        await loadInstances()
+        ElMessage.success('创建成功')
+      } catch (e) {
+        console.error(e)
+        ElMessage.error('创建实例失败：' + (e.response?.data?.message || e.message))
+      }
     }
     const toggleStatus = async (row) => {
       const newStatus = row.status === 1 ? 0 : 1

@@ -16,9 +16,14 @@ export default {
     const strategyName = ref('')
     const drawflow = ref(null)
     const save = async () => {
-      const flowJson = drawflow.value.export()
-      await strategyApi.saveDef({ name: strategyName.value, flowJson })
-      alert('保存成功')
+      try {
+        const flowJson = JSON.stringify(drawflow.value.exportData())
+        await strategyApi.saveDef({ name: strategyName.value, flowJson })
+        alert('保存成功')
+      } catch (e) {
+        console.error(e)
+        alert('保存失败: ' + e.message)
+      }
     }
     return { strategyName, drawflow, save }
   }

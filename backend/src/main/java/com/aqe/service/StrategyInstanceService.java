@@ -12,6 +12,15 @@ public class StrategyInstanceService {
     @Autowired private StrategyInstanceRepository repository;
 
     public StrategyInstance save(StrategyInstance instance) {
+        if (instance.getParams() != null && instance.getParams().isEmpty()) {
+            instance.setParams(null);
+        }
+        if (instance.getTriggerConditions() != null && instance.getTriggerConditions().isEmpty()) {
+            instance.setTriggerConditions(null);
+        }
+        if (instance.getStatus() == null) {
+            instance.setStatus(0);
+        }
         return repository.save(instance);
     }
 

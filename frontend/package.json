@@ -11,7 +11,7 @@
     "vuex": "^4.0.2",
     "axios": "^0.26.0",
     "element-plus": "^2.2.0",
-    "vue-drawflow": "^1.0.3"
+    "drawflow": "^0.0.59"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^2.2.0",

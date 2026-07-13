@@ -1,26 +1,37 @@
 <template>
-  <div style="height:600px;border:1px solid #ccc;">
-    <vue-drawflow ref="drawflow" :nodes="nodes" :connections="connections" @update="onUpdate" />
-  </div>
+  <div ref="drawflowContainer" style="height:600px;border:1px solid #ccc;"></div>
 </template>
+
 <script>
-import { ref } from 'vue'
-import VueDrawflow from 'vue-drawflow'
+import { ref, onMounted } from 'vue'
+import Drawflow from 'drawflow'
+import 'drawflow/dist/drawflow.min.css'
 
 export default {
-  components: { VueDrawflow },
-  setup() {
-    const drawflow = ref(null)
-    const nodes = ref([])
-    const connections = ref([])
+  props: {
+    nodes: { type: Array, default: () => [] },
+    connections: { type: Array, default: () => [] }
+  },
+  emits: ['update'],
+  setup(props, { emit }) {
+    const drawflowContainer = ref(null)
+    let editor = null
 
     const exportData = () => {
-      return drawflow.value.export()
+      return editor ? editor.export() : null
     }
-    const onUpdate = (data) => {
-      // 处理更新
-    }
-    return { drawflow, nodes, connections, exportData, onUpdate }
+
+    onMounted(() => {
+      editor = new Drawflow(drawflowContainer.value)
+      editor.reroute = false
+      editor.start()
+
+      editor.on('nodeMoved', () => emit('update', editor.export()))
+      editor.on('connectionCreated', () => emit('update', editor.export()))
+      editor.on('nodeRemoved', () => emit('update', editor.export()))
+    })
+
+    return { drawflowContainer, exportData }
   }
 }
 </script>
