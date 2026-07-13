@@ -89,6 +89,7 @@ public class StrategyEngine {
 
             // 2. 构建节点映射 (id -> node)
             Map<String, JsonNode> nodeMap = new HashMap<>();
+
             for (JsonNode node : nodesArray) {
                 String id = node.path("id").asText();
                 nodeMap.put(id, node);
@@ -151,6 +152,7 @@ public class StrategyEngine {
 
                 // 提取节点属性（除 id, type 外所有字段）
                 Map<String, Object> properties = new HashMap<>();
+                properties.put("id", nodeId); // 添加这行 测试专用
                 node.fields().forEachRemaining(entry -> {
                     String key = entry.getKey();
                     if (!"id".equals(key) && !"type".equals(key)) {
