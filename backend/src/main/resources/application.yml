@@ -16,6 +16,7 @@ spring:
     # 若不使用Redis，可注释掉，改用内存缓存
   flyway:
     enabled: true
+    baseline-on-migrate: true   # 添加这一行
     locations: classpath:db/migration
 logging:
   level:
