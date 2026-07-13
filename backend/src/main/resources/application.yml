@@ -18,6 +18,14 @@ spring:
     enabled: true
     baseline-on-migrate: true   # 添加这一行
     locations: classpath:db/migration
+# Swagger配置
+swagger:
+  enabled: true
+  title: Auto Quote Engine API
+  description: 自动报价引擎接口文档
+  version: 1.0.0
+  base-package: com.aqe.controller
+
 logging:
   level:
     com.aqe: debug
