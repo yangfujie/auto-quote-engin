@@ -14,7 +14,7 @@
 3. 启动前端
    进入 frontend 目录，执行 npm install 安装依赖。
 
-执行 npm run dev，访问 http://localhost:5173（Vite默认端口）。
+执行 npm run dev，访问 http://localhost:3000
 
 4. 测试流程
    先创建一个策略定义（可在前端编辑器画好流程图，目前需在数据库中预先插入节点数据，或通过前端保存）。
