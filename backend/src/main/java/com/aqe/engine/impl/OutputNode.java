@@ -15,15 +15,29 @@ public class OutputNode implements NodeExecutor {
     @Autowired
     private PriorityOrderQueue orderQueue;
 
+    private Object resolveValue(String ref, Map<String, Object> context) {
+        if (ref == null) return null;
+        // 如果引用是纯数字，直接解析 支持引用节点ID或固定数值
+        if (ref.matches("\\d+(\\.\\d+)?")) {
+            return Double.parseDouble(ref);
+        }
+        // 否则从上下文获取（节点ID）
+        return context.get(ref);
+    }
+
     @Override
     public Object execute(Map<String, Object> context, Map<String, Object> properties) {
         String priceRef = (String) properties.get("priceRef");
         String volumeRef = (String) properties.get("volumeRef");
         String sideRef = (String) properties.get("sideRef");
-        // 从context获取值
-        Double price = (Double) context.get(priceRef);
-        Integer volume = (Integer) context.get(volumeRef);
-        String side = (String) context.get(sideRef);
+
+        Object priceObj = resolveValue(priceRef, context);
+        Object volumeObj = resolveValue(volumeRef, context);
+
+        double price = priceObj instanceof Number ? ((Number) priceObj).doubleValue() : 0.0;
+        int volume = volumeObj instanceof Number ? ((Number) volumeObj).intValue() : 0;
+        String side = sideRef != null ? sideRef : "BUY";
+
         Integer priority = (Integer) context.get("instancePriority");
         Long instanceId = (Long) context.get("instanceId");
 
@@ -35,7 +49,7 @@ public class OutputNode implements NodeExecutor {
         order.setPriority(priority != null ? priority : 5);
         order.setStatus(0);
         order.setCreateTime(new Date());
-        // 入队
+
         orderQueue.offer(order);
         context.put("outputOrder", order);
         return order;

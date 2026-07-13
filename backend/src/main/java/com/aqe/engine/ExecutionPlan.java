@@ -13,7 +13,12 @@ public class ExecutionPlan {
 
     public void execute(Map<String, Object> context) {
         for (NodeExecutionUnit unit : units) {
-            unit.getExecutor().execute(context, unit.getProperties());
+            Object result = unit.getExecutor().execute(context, unit.getProperties());
+            // 将结果存入上下文，键为节点ID
+            String nodeId = (String) unit.getProperties().get("id");
+            if (nodeId != null) {
+                context.put(nodeId, result);
+            }
         }
     }
 }
