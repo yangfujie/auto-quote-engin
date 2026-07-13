@@ -26,9 +26,4 @@ public class MonitorController {
         return orderService.findRecent(100);
     }
 
-
-//    @PostMapping("/simulateMarket")
-//    public void simulateMarket(@RequestParam String symbol, @RequestParam double price, @RequestParam int volume) {
-//        applicationEventPublisher.publishEvent(new MarketEvent(symbol, price, volume));
-//    }
 }

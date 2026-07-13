@@ -21,4 +21,5 @@
 
 创建实例，设置触发条件和优先级。
 
-模拟发送行情：可通过POST请求 http://localhost:8080/api/market/simulate（需添加一个Controller端点），或直接在 MarketDataNode 中静态调用 updateMarket。为了方便，我们可以在MonitorController加一个模拟端点：
+模拟发送行情：可通过POST请求 http://localhost:8080/api/market/simulate
+在本项目为了做演示，增加了一个模拟行情端点MarketSimulateController
