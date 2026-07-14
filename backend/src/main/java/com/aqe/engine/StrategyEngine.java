@@ -8,6 +8,8 @@ import com.aqe.service.StrategyInstanceService;
 import com.aqe.util.NodeExecutionUnit;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.googlecode.aviator.AviatorEvaluator;
+import com.googlecode.aviator.Expression;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -77,7 +79,6 @@ public class StrategyEngine {
 
     // ========== 构建执行计划（核心） ==========
     private ExecutionPlan buildPlan(Long defId) {
-        // 1. 获取策略定义
         StrategyDef def = strategyDefRepository.findById(defId)
                 .orElseThrow(() -> new RuntimeException("Strategy def not found: " + defId));
         String flowJson = def.getFlowJson();
@@ -87,15 +88,13 @@ public class StrategyEngine {
             JsonNode nodesArray = root.path("nodes");
             JsonNode connectionsArray = root.path("connections");
 
-            // 2. 构建节点映射 (id -> node)
             Map<String, JsonNode> nodeMap = new HashMap<>();
-
             for (JsonNode node : nodesArray) {
                 String id = node.path("id").asText();
                 nodeMap.put(id, node);
             }
 
-            // 3. 构建有向图邻接表 (source -> targets)
+            // 构建邻接表
             Map<String, List<String>> adjacencyList = new HashMap<>();
             for (JsonNode conn : connectionsArray) {
                 String source = conn.path("source").asText();
@@ -103,7 +102,7 @@ public class StrategyEngine {
                 adjacencyList.computeIfAbsent(source, k -> new ArrayList<>()).add(target);
             }
 
-            // 4. 计算入度
+            // 计算入度
             Map<String, Integer> inDegree = new HashMap<>();
             for (String nodeId : nodeMap.keySet()) {
                 inDegree.put(nodeId, 0);
@@ -114,14 +113,13 @@ public class StrategyEngine {
                 }
             }
 
-            // 5. 拓扑排序（Kahn 算法）
+            // 拓扑排序
             Queue<String> queue = new LinkedList<>();
             for (Map.Entry<String, Integer> entry : inDegree.entrySet()) {
                 if (entry.getValue() == 0) {
                     queue.offer(entry.getKey());
                 }
             }
-
             List<String> sortedIds = new ArrayList<>();
             while (!queue.isEmpty()) {
                 String nodeId = queue.poll();
@@ -135,35 +133,46 @@ public class StrategyEngine {
                     }
                 }
             }
-
-            // 检测循环依赖
             if (sortedIds.size() != nodeMap.size()) {
                 throw new RuntimeException("Cycle detected in flow graph for strategy def: " + defId);
             }
 
-            // 6. 按拓扑序构建执行单元
+            // 构建执行单元
             List<NodeExecutionUnit> units = new ArrayList<>();
             for (String nodeId : sortedIds) {
                 JsonNode node = nodeMap.get(nodeId);
-                String type = node.path("type").asText(); // 节点类型：market / calculate / output
+                String type = node.path("type").asText();
 
-                // 获取对应的执行器
-                NodeExecutor executor = getExecutorByType(type);
-
-                // 提取节点属性（除 id, type 外所有字段）
                 Map<String, Object> properties = new HashMap<>();
-                properties.put("id", nodeId); // 添加这行 测试专用
-                node.fields().forEachRemaining(entry -> {
-                    String key = entry.getKey();
-                    if (!"id".equals(key) && !"type".equals(key)) {
-                        JsonNode value = entry.getValue();
-                        if (value.isTextual()) properties.put(key, value.asText());
-                        else if (value.isNumber()) properties.put(key, value.numberValue());
-                        else if (value.isBoolean()) properties.put(key, value.asBoolean());
-                        else properties.put(key, value.toString());
-                    }
-                });
+                properties.put("id", nodeId);
 
+                switch (type) {
+                    case "market":
+                        if (node.has("symbol")) {
+                            properties.put("symbol", node.path("symbol").asText());
+                        }
+                        break;
+                    case "calculate":
+                        String expressionStr = node.path("expression").asText();
+                        if (expressionStr == null || expressionStr.isEmpty()) {
+                            throw new RuntimeException("Calculate node missing expression: " + nodeId);
+                        }
+                        // 预编译表达式
+                        Expression compiled = AviatorEvaluator.compile(expressionStr, true);
+                        properties.put("compiledExpression", compiled);
+                        // 可选：保留原始表达式用于日志
+                        properties.put("expression", expressionStr);
+                        break;
+                    case "output":
+                        if (node.has("priceRef")) properties.put("priceRef", node.path("priceRef").asText());
+                        if (node.has("volumeRef")) properties.put("volumeRef", node.path("volumeRef").asText());
+                        if (node.has("sideRef")) properties.put("sideRef", node.path("sideRef").asText());
+                        break;
+                    default:
+                        throw new IllegalArgumentException("Unknown node type: " + type);
+                }
+
+                NodeExecutor executor = getExecutorByType(type);
                 units.add(new NodeExecutionUnit(executor, properties));
             }
 
@@ -171,25 +180,18 @@ public class StrategyEngine {
             return new ExecutionPlan(units);
 
         } catch (Exception e) {
-            log.error("Failed to parse flow_json for def {}", defId, e);
+            log.error("Failed to build execution plan for def {}", defId, e);
             throw new RuntimeException("Failed to build execution plan", e);
         }
     }
 
     // ========== 根据节点类型获取执行器 ==========
     private NodeExecutor getExecutorByType(String type) {
-        String beanName;
         switch (type) {
-            case "market":   beanName = "marketDataNode"; break;
-            case "calculate": beanName = "calculateNode"; break;
-            case "output":   beanName = "outputNode"; break;
-            default:
-                throw new IllegalArgumentException("Unknown node type: " + type);
+            case "market":    return executorMap.get("marketDataNode");
+            case "calculate": return executorMap.get("calculateNode");
+            case "output":    return executorMap.get("outputNode");
+            default: throw new IllegalArgumentException("Unknown node type: " + type);
         }
-        NodeExecutor executor = executorMap.get(beanName);
-        if (executor == null) {
-            throw new RuntimeException("No executor found for type: " + type + " (bean: " + beanName + ")");
-        }
-        return executor;
     }
 }

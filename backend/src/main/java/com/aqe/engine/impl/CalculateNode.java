@@ -2,19 +2,23 @@
 package com.aqe.engine.impl;
 
 import com.aqe.engine.NodeExecutor;
-import com.googlecode.aviator.AviatorEvaluator;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
+
 import java.util.Map;
+import com.googlecode.aviator.Expression;
 
 @Component
 public class CalculateNode implements NodeExecutor {
+
     @Override
     public Object execute(Map<String, Object> context, Map<String, Object> properties) {
-        String expression = (String) properties.get("expression");
-        // 直接使用context作为环境，Aviator可以处理嵌套Map
-        Object result = AviatorEvaluator.execute(expression, context);
-        return result;
+        // 从 properties 中取出预编译好的 Expression 对象
+        Expression compiledExpression = (Expression) properties.get("compiledExpression");
+        if (compiledExpression == null) {
+            throw new IllegalStateException("compiledExpression not found in properties for calculate node");
+        }
+        // 直接执行，传入上下文作为变量环境
+        return compiledExpression.execute(context);
     }
 }
