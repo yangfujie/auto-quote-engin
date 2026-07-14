@@ -6,6 +6,7 @@ const api = axios.create({
 
 export const strategyApi = {
     saveDef: (data) => api.post('/strategy/def', data),
+    getDef: (id) => api.get(`/strategy/def/${id}`),
     listDef: () => api.get('/strategy/def'),
     createInstance: (data) => api.post('/strategy/instance', data),
     listInstances: () => api.get('/strategy/instance'),

@@ -23,10 +23,15 @@ export default {
     const timer = ref(null)
 
     const fetchData = async () => {
-      const depth = await monitorApi.getQueueDepth()
-      queueDepth.value = depth.data
-      const orderRes = await monitorApi.getOrders()
-      orders.value = orderRes.data
+      try {
+        const depth = await monitorApi.getQueueDepth()
+        queueDepth.value = depth.data
+        const orderRes = await monitorApi.getOrders()
+        orders.value = orderRes.data
+        console.log('[Monitor] orders:', orderRes.data.length, 'queueDepth:', depth.data)
+      } catch (e) {
+        console.error('[Monitor] fetchData error:', e)
+      }
     }
     const sideFormatter = (row) => row.side === 1 ? '买' : '卖'
     const statusFormatter = (row) => {
