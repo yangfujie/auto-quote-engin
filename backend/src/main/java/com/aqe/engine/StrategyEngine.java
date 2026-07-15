@@ -1,9 +1,11 @@
 package com.aqe.engine;
 
 import com.aqe.engine.impl.MarketDataNode;
+import com.aqe.model.entity.QuoteOrder;
 import com.aqe.model.entity.StrategyDef;
 import com.aqe.model.entity.StrategyInstance;
 import com.aqe.repository.StrategyDefRepository;
+import com.aqe.service.QuoteOrderService;
 import com.aqe.service.StrategyInstanceService;
 import com.aqe.util.NodeExecutionUnit;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -12,6 +14,8 @@ import com.googlecode.aviator.AviatorEvaluator;
 import com.googlecode.aviator.Expression;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -25,36 +29,58 @@ public class StrategyEngine {
     private StrategyDefRepository strategyDefRepository;
     @Autowired
     private StrategyInstanceService instanceService;
+
+
     @Autowired
+    private QuoteOrderService orderService;
     private ObjectMapper objectMapper;
 
     // 注入所有 NodeExecutor 实现类，key 为 bean 名称
     @Autowired
     private Map<String, NodeExecutor> executorMap;
 
-    private final ExecutorService executor = new ThreadPoolExecutor(
-            4, 20, 60L, TimeUnit.SECONDS,
-            new LinkedBlockingQueue<>(1000),
-            new ThreadPoolExecutor.CallerRunsPolicy()
-    );
+
+    @Autowired
+    @Qualifier("cpuExecutor")
+    private ThreadPoolTaskExecutor cpuExecutor;
+
+    @Autowired
+    @Qualifier("ioExecutor")
+    private ThreadPoolTaskExecutor ioExecutor;
 
     private final Map<Long, ExecutionPlan> planCache = new ConcurrentHashMap<>();
 
-    // ========== 外部消息入口 ==========
+    /**
+     * 行情事件入口（由MQ消费者调用）
+     */
     public void onMarketEvent(String symbol, double price, int volume) {
+        // 更新行情缓存
         MarketDataNode.updateMarket(symbol, price, volume);
+        // 查找该标的所有运行实例
         List<StrategyInstance> instances = instanceService.findRunningBySymbol(symbol);
-        for (StrategyInstance inst : instances) {
-            if (ConditionMatcher.match(inst.getTriggerConditions(), price, volume)) {
-                executor.submit(() -> executeInstance(inst));
-            }
-        }
+        if (instances.isEmpty()) return;
+
+        // 使用 CompletableFuture 批量提交，实现并行触发
+        CompletableFuture<?>[] futures = instances.stream()
+                .filter(inst -> ConditionMatcher.match(inst.getTriggerConditions(), price, volume))
+                .map(inst -> CompletableFuture.runAsync(() -> executeInstance(inst), cpuExecutor))
+                .toArray(CompletableFuture[]::new);
+
+        // 可选：等待所有实例执行完成（或设置超时）
+        CompletableFuture.allOf(futures).exceptionally(ex -> {
+            log.error("Some instance execution failed", ex);
+            return null;
+        });
     }
+
 
     // ========== 执行单个实例 ==========
     private void executeInstance(StrategyInstance instance) {
         try {
+            // 1. 获取执行计划（缓存）
             ExecutionPlan plan = planCache.computeIfAbsent(instance.getStrategyDefId(), this::buildPlan);
+
+            // 2. 构建上下文
             Map<String, Object> context = new HashMap<>();
             context.put("instanceId", instance.getId());
             context.put("instancePriority", instance.getPriority());
@@ -70,7 +96,19 @@ public class StrategyEngine {
                 });
             }
 
+            // 3. 执行DAG（纯计算，无阻塞IO）
             plan.execute(context);
+
+            // 4. 异步持久化订单（IO密集型）—— 使用 ioExecutor
+            Object orderObj = context.get("outputOrder");
+            if (orderObj instanceof QuoteOrder) {
+                QuoteOrder order = (QuoteOrder) orderObj;
+                CompletableFuture.runAsync(() -> {
+                    // 保存到数据库或发送MQ
+                    orderService.save(order);
+                    log.debug("Order persisted: {}", order.getId());
+                }, ioExecutor);
+            }
             log.info("Instance {} executed, order generated.", instance.getId());
         } catch (Exception e) {
             log.error("Execute instance {} error", instance.getId(), e);
