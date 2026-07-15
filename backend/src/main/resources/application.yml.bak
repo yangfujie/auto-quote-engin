@@ -8,12 +8,11 @@ spring:
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  # RabbitMQ 配置（必须在 spring 节点下）
   rabbitmq:
     host: 101.42.14.127
-    port: 5672               # 注意：AMQP 端口是 5672，不是 15672
-    username: admin
-    password: admin
+    port: 5672
+    username: auto-quote-engin
+    password: auto-quote-engin
     virtual-host: /
     publisher-confirm-type: correlated
     publisher-returns: true
@@ -37,4 +36,6 @@ spring:
     baseline-on-migrate: true
     locations: classpath:db/migration
 
-# 其他配置...
+logging:
+  level:
+    com.aqe: debug
