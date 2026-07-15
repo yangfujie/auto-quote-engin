@@ -81,9 +81,8 @@
             <version>6.1.6</version>
         </dependency>
         <dependency>
-            <groupId>6.3.repository.org.springframework.amqp</groupId>
-            <artifactId>spring-rabbit</artifactId>
-            <version>3.0.10</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
     </dependencies>
     <build>

@@ -1,6 +1,7 @@
 // AutoQuoteEngineApplication.java
 package com.aqe;
 
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.SpringApplication;
@@ -12,10 +13,9 @@ import javax.annotation.PreDestroy;
 import java.util.concurrent.TimeUnit;
 
 @SpringBootApplication
-@EnableScheduling
+@EnableRabbit
 public class AutoQuoteEngineApplication {
     public static void main(String[] args) {
         SpringApplication.run(AutoQuoteEngineApplication.class, args);
     }
-
 }
