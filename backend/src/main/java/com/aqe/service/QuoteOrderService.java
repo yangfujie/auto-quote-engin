@@ -17,10 +17,10 @@ public class QuoteOrderService {
     }
 
     public void update(QuoteOrder order) {
-
+        repository.save(order);
     }
 
-    public List<QuoteOrder> findRecent(int i) {
-        return null;
+    public List<QuoteOrder> findRecent(int limit) {
+        return repository.findTop100ByOrderByCreateTimeDesc();
     }
 }
