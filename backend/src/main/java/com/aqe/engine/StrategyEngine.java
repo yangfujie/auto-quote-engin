@@ -18,7 +18,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 策略引擎（基于 LiteFlow）
@@ -49,6 +51,9 @@ public class StrategyEngine {
 
     @Autowired
     private FlowExecutor flowExecutor;
+
+    /** 节点配置缓存：key=strategyDefId, value=nodeConfigs，避免每次 tick 都查 DB + 解析 JSON */
+    private final Map<Long, Map<String, Object>> nodeConfigsCache = new ConcurrentHashMap<>();
 
     /**
      * 行情事件入口（由 MQ 消费者或 REST 接口调用）
@@ -106,11 +111,17 @@ public class StrategyEngine {
                 });
             }
 
-            // 提取节点配置（包含预编译表达式等），注入到上下文
-            String flowJson = strategyDefRepository.findById(instance.getStrategyDefId())
-                    .map(StrategyDef::getFlowJson)
-                    .orElse("{}");
-            ctx.setNodeConfigs(chainLoader.extractNodeConfigs(flowJson));
+            // 从缓存获取节点配置（首次查询后缓存，策略更新时清除缓存）
+            Map<String, Object> nodeConfigs = nodeConfigsCache.computeIfAbsent(
+                    instance.getStrategyDefId(),
+                    defId -> {
+                        String flowJson = strategyDefRepository.findById(defId)
+                                .map(StrategyDef::getFlowJson)
+                                .orElse("{}");
+                        return chainLoader.extractNodeConfigs(flowJson);
+                    }
+            );
+            ctx.setNodeConfigs(nodeConfigs);
 
             // 执行 LiteFlow Chain
             LiteflowResponse response = flowExecutor.execute2Resp(chainId, ctx);
@@ -118,7 +129,7 @@ public class StrategyEngine {
                 log.error("Chain {} execution failed for instance {}", chainId, instance.getId(), response.getCause());
             }
 
-            log.info("Instance {} executed via chain {}", instance.getId(), chainId);
+            log.debug("Instance {} executed via chain {}", instance.getId(), chainId);
         } catch (Exception e) {
             log.error("Execute instance {} error", instance.getId(), e);
         }

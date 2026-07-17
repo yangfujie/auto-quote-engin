@@ -67,7 +67,7 @@ public class OutputCmp extends NodeComponent {
         orderQueue.offer(order);
         ctx.setOutputOrder(order);
 
-        log.info("OutputCmp [{}]: order generated, price={}, volume={}, side={}",
+        log.debug("OutputCmp [{}]: order generated, price={}, volume={}, side={}",
                 nodeId, price, volume, side);
     }
 
