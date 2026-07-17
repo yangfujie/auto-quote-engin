@@ -7,9 +7,12 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * 线程池配置类
  */
+@Slf4j
 @Configuration
 public class ThreadPoolConfig {
 
@@ -25,9 +28,9 @@ public class ThreadPoolConfig {
     @Bean("cpuExecutor")
     public ThreadPoolTaskExecutor cpuExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(CPU_CORES + 1);            // 5
-        executor.setMaxPoolSize(CPU_CORES * 2 + 1);        // 9
-        executor.setQueueCapacity(200);                    // 有界队列
+        executor.setCorePoolSize(CPU_CORES *2);            // 5
+        executor.setMaxPoolSize(CPU_CORES * 4);        // 9
+        executor.setQueueCapacity(2000);                    // 有界队列
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardOldestPolicy());
         executor.setThreadNamePrefix("cpu-exec-");
         executor.initialize();
@@ -62,7 +65,7 @@ public class ThreadPoolConfig {
             // 从队列中移除优先级最低的任务（假设任务实现了优先级接口）
             // 由于 ThreadPoolExecutor 的队列是 BlockingQueue，无法直接移除指定元素，
             // 需自定义队列（如 PriorityBlockingQueue + 比较器），此处仅作示意
-            System.out.println("Queue is full, discarding lowest priority task");
+            log.warn("Queue is full, discarding lowest priority task");
             // 实际实现可参考：将队列转为 ArrayBlockingQueue，遍历移除最小优先级
         };
     }

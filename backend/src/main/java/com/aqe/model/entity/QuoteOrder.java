@@ -13,6 +13,7 @@ public class QuoteOrder implements Comparable<QuoteOrder> {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private Long instanceId;
+    private Long strategyInstanceId;
     private Integer side;  //1买 2卖
     private BigDecimal price;
     private Integer volume;

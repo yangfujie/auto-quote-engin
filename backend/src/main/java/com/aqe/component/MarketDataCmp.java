@@ -22,6 +22,9 @@ public class MarketDataCmp extends NodeComponent {
     @Override
     public void process() throws Exception {
         StrategyContext ctx = (StrategyContext) this.getRequestData();
+        if (ctx == null) {
+            throw new IllegalStateException("StrategyContext is null, requestData not set");
+        }
         String nodeId = this.getTag();
 
         // 从节点配置中获取 symbol，若无则使用上下文中的 symbol

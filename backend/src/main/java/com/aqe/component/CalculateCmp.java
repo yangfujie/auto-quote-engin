@@ -20,10 +20,22 @@ public class CalculateCmp extends NodeComponent {
     @Override
     public void process() throws Exception {
         StrategyContext ctx = (StrategyContext) this.getRequestData();
+        if (ctx == null) {
+            throw new IllegalStateException("StrategyContext is null, requestData not set");
+        }
+
         String nodeId = this.getTag();
+        if (nodeId == null || nodeId.isEmpty()) {
+            throw new IllegalStateException("Node tag is null or empty, please set tag for calculate node");
+        }
+
+        Map<String, Object> nodeConfigs = ctx.getNodeConfigs();
+        if (nodeConfigs == null) {
+            throw new IllegalStateException("nodeConfigs is null in context");
+        }
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> config = (Map<String, Object>) ctx.getNodeConfigs().get(nodeId);
+        Map<String, Object> config = (Map<String, Object>) nodeConfigs.get(nodeId);
         if (config == null) {
             throw new IllegalStateException("Node config not found for calculate node: " + nodeId);
         }

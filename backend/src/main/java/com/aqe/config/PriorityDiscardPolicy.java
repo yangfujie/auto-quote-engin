@@ -5,9 +5,12 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * 自定义拒绝策略示例（按优先级丢弃）
  */
+@Slf4j
 public class PriorityDiscardPolicy implements RejectedExecutionHandler {
     @Override
     public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
@@ -19,7 +22,7 @@ public class PriorityDiscardPolicy implements RejectedExecutionHandler {
             executor.execute(r); // 重新提交当前任务
         } else {
             // 降级方案：直接丢弃当前任务，记录日志
-            System.out.println("Queue full, task rejected");
+            log.warn("Queue full, task rejected, falling back to discard policy");
         }
     }
 }
