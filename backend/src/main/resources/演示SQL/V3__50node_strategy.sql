@@ -17,7 +17,7 @@ INSERT INTO strategy_instance (strategy_def_id, symbol, status, params, priority
 VALUES (
     LAST_INSERT_ID(),
     'AAPL',
-    1,
+    5,
     '{"multiplier":"0.98"}',
     8,
     '{"type":"AND","conditions":[{"field":"price","operator":">","value":100},{"field":"volume","operator":">=","value":500}]}',
